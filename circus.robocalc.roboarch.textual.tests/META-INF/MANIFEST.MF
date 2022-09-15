@@ -1,0 +1,18 @@
+Manifest-Version: 1.0
+Automatic-Module-Name: circus.robocalc.roboarch.textual.tests
+Bundle-ManifestVersion: 2
+Bundle-Name: %pluginName
+Bundle-Vendor: %providerName
+Bundle-Localization: plugin
+Bundle-Version: 1.0.0.qualifier
+Bundle-SymbolicName: circus.robocalc.roboarch.textual.tests; singleton:=true
+Bundle-ActivationPolicy: lazy
+Require-Bundle: circus.robocalc.roboarch.textual,
+ org.junit.jupiter.api;bundle-version="[5.0.0,6.0.0)",
+ org.eclipse.xtext.testing,
+ org.eclipse.xtext.xbase.testing,
+ org.eclipse.xtext.xbase.lib;bundle-version="2.14.0",
+ circus.robocalc.roboarch;bundle-version="1.0.0",
+ circus.robocalc.robochart;bundle-version="2.0.0"
+Bundle-RequiredExecutionEnvironment: JavaSE-11
+Export-Package: circus.robocalc.roboarch.textual.tests;x-internal=true

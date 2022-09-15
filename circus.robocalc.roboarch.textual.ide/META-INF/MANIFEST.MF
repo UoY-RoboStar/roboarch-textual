@@ -1,0 +1,18 @@
+Manifest-Version: 1.0
+Automatic-Module-Name: circus.robocalc.roboarch.textual.ide
+Bundle-ManifestVersion: 2
+Bundle-Name: %pluginName
+Bundle-Vendor: %providerName
+Bundle-Localization: plugin
+Bundle-Version: 1.0.0.qualifier
+Bundle-SymbolicName: circus.robocalc.roboarch.textual.ide; singleton:=true
+Bundle-ActivationPolicy: lazy
+Require-Bundle: circus.robocalc.roboarch.textual,
+ org.eclipse.xtext.ide,
+ org.eclipse.xtext.xbase.ide,
+ org.antlr.runtime;bundle-version="[3.2.0,3.2.1)",
+ circus.robocalc.roboarch;bundle-version="1.0.0",
+ circus.robocalc.robochart.textual;bundle-version="2.0.0"
+Bundle-RequiredExecutionEnvironment: JavaSE-11
+Export-Package: circus.robocalc.roboarch.textual.ide.contentassist.antlr.internal,
+ circus.robocalc.roboarch.textual.ide.contentassist.antlr
