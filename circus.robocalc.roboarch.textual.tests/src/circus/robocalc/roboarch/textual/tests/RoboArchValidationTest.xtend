@@ -31,6 +31,74 @@ class RoboArchValidationTest {
 	@Inject	extension ParseHelper<System> parseHelper
 	@Inject extension ValidationTestHelper
 	
+
+
+	/*
+	 *  S1: The robotic platform is used 
+	 */
+	@Test
+	def void testRoboticPlatformIsUsed() {
+		// Platform not used
+		'''
+			system ThreeEmptyLayers
+			
+			layer c1: ControlLayer { } ;	 
+
+			robotic platform rp1 { } 
+		'''.parse.assertPlatformIsUsed()
+	} 
+	 
+	@Test
+	def void testNotRoboticPlatformIsUsedConnection() {
+		// Platform used via connection of events
+		'''
+			system ThreeEmptyLayers
+			
+			interface i1 { event ro: int  } 
+			
+			layer c1: ControlLayer { 
+				outputs = o1: int ;
+			} ;	 
+			
+			connections =  c1 on o1 to rp1 on ro ;
+			
+			robotic platform rp1 { 
+				uses i1
+} 
+		'''.parse.assertNoPlatformIsUsed()
+	}	 
+	 
+	@Test
+	def void testNotRoboticPlatformIsUsedInterface() {
+		// Platform used via interface
+		'''
+			system ThreeEmptyLayers
+			
+			interface i2 { var  vr: nat  } 
+			
+			layer c1: ControlLayer { 
+				requires i2
+			} ;	 
+			
+			robotic platform rp1 { 
+				provides i2
+			} 
+		'''.parse.assertNoPlatformIsUsed()
+	}
+	
+	def private assertPlatformIsUsed(System sys){
+		sys.assertError(
+			RoboArchPackage.eINSTANCE.system,
+			RoboArchValidator.ROBOTIC_PLATFORM_UNUSED,
+			"The robotic platform must be used."
+		)
+	}	 	 
+
+	
+	def private assertNoPlatformIsUsed(System sys){
+		sys.assertNoError(RoboArchValidator.ROBOTIC_PLATFORM_UNUSED)
+	}	 
+
 	
 	/*
 	 *  The layers of a system must be distinct.

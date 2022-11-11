@@ -19,6 +19,9 @@ package circus.robocalc.roboarch.textual.validation;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
+import java.util.Stack;
+
+import org.eclipse.emf.ecore.util.EcoreUtil;
 
 import org.eclipse.xtext.validation.Check;
 
@@ -30,6 +33,7 @@ import circus.robocalc.roboarch.Layer;
 import circus.robocalc.roboarch.Pattern;
 import circus.robocalc.roboarch.PlannerScheduler;
 import circus.robocalc.roboarch.PlanningLayer;
+import circus.robocalc.roboarch.PlatformCommunicator;
 import circus.robocalc.roboarch.ReactiveSkills;
 import circus.robocalc.roboarch.RoboArchPackage;
 import circus.robocalc.roboarch.Subsumption;
@@ -37,6 +41,7 @@ import circus.robocalc.roboarch.System;
 import circus.robocalc.roboarch.util.Model;
 import circus.robocalc.robochart.Connection;
 import circus.robocalc.robochart.RoboChartPackage;
+import circus.robocalc.robochart.RoboticPlatform;
 
 
 /**
@@ -58,13 +63,11 @@ public class RoboArchValidator extends AbstractRoboArchValidator {
 	public static String LAYERS_NOT_DISTINCT_TYPES =
 			ISSUE_CODE_PREFIX + "LayerTypesNotDistinct";
 	
-	//old
-	public static String LAYER_WITHOUT_PATTERN =
-			ISSUE_CODE_PREFIX + "LayerWithoutPattern";
-	
+
 	///////////////////////////////////////////////////////
 	
-	//TODO implement
+
+	// S1
 	public static String ROBOTIC_PLATFORM_UNUSED =
 			ISSUE_CODE_PREFIX + "RoboticPlatformUnused";	
 	
@@ -98,6 +101,66 @@ public class RoboArchValidator extends AbstractRoboArchValidator {
 	//	TODO Update according to latest well-formedness
 	 
 
+	// S1
+	@Check
+	public void roboticPlatformIsUsed(System sys) {
+		
+		// Check connections for one that exists between a layer and the platform 
+		boolean layerConnectionExists; 
+		
+		Stack<Connection>  systemConnections = new Stack<Connection>();
+		systemConnections.addAll( sys.getConnections() );
+		
+		layerConnectionExists = false;
+		
+		while (!layerConnectionExists && !systemConnections.empty() ) {
+			Connection con = systemConnections.pop();
+			
+			if( con.getFrom() instanceof RoboticPlatform ) {
+				layerConnectionExists = con.getTo() instanceof Layer;
+				
+			} else if ( con.getTo() instanceof RoboticPlatform ){
+				layerConnectionExists = con.getFrom() instanceof Layer;
+				
+			} else {
+				layerConnectionExists = false; // Not a connection involving the RoboticPlatform
+			}
+				
+		}
+		
+		
+	    // Check for a layer with an rInterface
+		Stack<PlatformCommunicator> platformCommunicableLayers = new Stack<PlatformCommunicator>();
+		
+		platformCommunicableLayers.addAll( EcoreUtil.getObjectsByType(sys.getLayers(), RoboArchPackage.Literals.PLATFORM_COMMUNICATOR) ); 
+		boolean layerWithRinterfaceExists;
+		
+		if ( platformCommunicableLayers.empty() ) {
+			
+			layerWithRinterfaceExists = false;
+		}
+		else {
+			layerWithRinterfaceExists = false;
+
+			while(!layerWithRinterfaceExists && !platformCommunicableLayers.empty() ) {
+				PlatformCommunicator layer = platformCommunicableLayers.pop();
+				
+				layerWithRinterfaceExists = (layer.getRinterfaces().size() > 0); 
+			}
+		
+		}
+		
+		if ( !layerConnectionExists && !layerWithRinterfaceExists) {
+			error("The robotic platform must be used.", RoboArchPackage.Literals.SYSTEM__ROBOT , ROBOTIC_PLATFORM_UNUSED);
+		}
+		
+	   
+	}
+	
+	
+	
+	
+	
 	@Check
 	public void layersAreDistinctTypes(System sys) {
 		Set< Class<Layer> > layerTypes = new HashSet();
