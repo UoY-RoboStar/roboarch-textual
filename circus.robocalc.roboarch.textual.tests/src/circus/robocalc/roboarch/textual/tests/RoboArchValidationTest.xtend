@@ -33,9 +33,10 @@ class RoboArchValidationTest {
 	
 
 
-	/*
-	 *  S1: The robotic platform is used 
-	 */
+/*
+ *  S1: The robotic platform is used 
+ */
+ 
 	@Test
 	def void testRoboticPlatformIsUsed() {
 		// Platform not used
@@ -99,10 +100,93 @@ class RoboArchValidationTest {
 		sys.assertNoError(RoboArchValidator.ROBOTIC_PLATFORM_UNUSED)
 	}	 
 
+
 	
-	/*
-	 *  The layers of a system must be distinct.
-	 */
+/*
+ *  S2: There are no unused layers.
+ */
+	 
+	@Test
+	def void testNotUnusedLayerInput() {
+		'''
+			system stest
+			
+			layer c: ControlLayer { 
+				inputs = a; 
+			} ;	 
+			
+			layer e { 
+				inputs = a; 
+			} ;    
+		'''.parse.assertNoUnusedLayer()
+	}
+
+	@Test
+	def void testNotUnusedLayerOutput() {
+		'''
+			system stest
+			
+			layer c: ControlLayer { 
+				outputs = a; 
+			} ;	 
+			
+			layer e { 
+				outputs = a; 
+			} ;    
+		'''.parse.assertNoUnusedLayer()
+	}
+
+	
+	
+	@Test
+	def void testUnusedLayerE() {
+		'''
+			system stest
+			
+			layer c: ControlLayer { 
+				inputs = a; 
+			} ;	 
+			
+			layer e { 
+			} ;    
+		'''.parse.assertUnusedLayer("e")
+	}
+	 
+	
+	@Test
+	def void testUnusedLayerC() {
+		'''
+			system stest
+			
+			layer c: ControlLayer { 
+			} ;	 
+			
+			layer e { 
+				inputs = a; 
+			} ;    
+		'''.parse.assertUnusedLayer("c")
+	}
+	 
+
+	def private assertUnusedLayer(System sys, String layerName){
+		sys.assertError(
+			RoboArchPackage.eINSTANCE.layer,
+			RoboArchValidator.LAYER_WITHOUT_IO,
+			"Layer '" + layerName + "' has no inputs or outputs."
+		)
+	}	 	 
+	 
+	def private assertNoUnusedLayer(System sys){
+		sys.assertNoError(RoboArchValidator.LAYER_WITHOUT_IO)
+	}		 
+	 
+	
+	
+	
+/*
+ *  The layers of a system must be distinct.
+ */
+ 
 	@Test
 	def void testLayersAreDistinctTypes() {
 		'''

@@ -21,6 +21,8 @@ import java.util.List;
 import java.util.Set;
 import java.util.Stack;
 
+import org.eclipse.emf.ecore.EObject;
+import org.eclipse.emf.ecore.EStructuralFeature;
 import org.eclipse.emf.ecore.util.EcoreUtil;
 
 import org.eclipse.xtext.validation.Check;
@@ -71,7 +73,7 @@ public class RoboArchValidator extends AbstractRoboArchValidator {
 	public static String ROBOTIC_PLATFORM_UNUSED =
 			ISSUE_CODE_PREFIX + "RoboticPlatformUnused";	
 	
-	//TODO implement
+	// S2
 	public static String LAYER_WITHOUT_IO =
 			ISSUE_CODE_PREFIX + "LayerWithoutIO";		
 	
@@ -157,6 +159,28 @@ public class RoboArchValidator extends AbstractRoboArchValidator {
 	   
 	}
 	
+
+	
+	
+	// S2
+	@Check
+	public void layerWithoutInputOrOutput(Layer lyr) { 
+		
+		EObject lyrParent = lyr.eContainer();
+		
+	    if (lyrParent instanceof System) {
+	    	System sys = (System) lyrParent ;
+	    	
+			if ( sys.getLayers().size() > 1 ) {
+				
+					if( lyr.getInputs().isEmpty() && lyr.getOutputs().isEmpty() ) {
+						error("Layer '" + lyr.getName() + "' has no inputs or outputs.", RoboArchPackage.Literals.LAYER__INPUTS , LAYER_WITHOUT_IO);
+					}
+				
+			}
+	    }
+		
+	}
 	
 	
 	
