@@ -16,10 +16,14 @@
  */
 package circus.robocalc.roboarch.textual.validation;
 
+import java.lang.reflect.Method;
+import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 import java.util.Stack;
+import java.util.function.Supplier;
+import java.util.stream.Collectors;
 
 import org.eclipse.emf.ecore.EObject;
 import org.eclipse.emf.ecore.EStructuralFeature;
@@ -42,6 +46,7 @@ import circus.robocalc.roboarch.Subsumption;
 import circus.robocalc.roboarch.System;
 import circus.robocalc.roboarch.util.Model;
 import circus.robocalc.robochart.Connection;
+import circus.robocalc.robochart.ConnectionNode;
 import circus.robocalc.robochart.RoboChartPackage;
 import circus.robocalc.robochart.RoboticPlatform;
 
@@ -77,7 +82,7 @@ public class RoboArchValidator extends AbstractRoboArchValidator {
 	public static String LAYER_WITHOUT_IO =
 			ISSUE_CODE_PREFIX + "LayerWithoutIO";		
 	
-	//TODO implement
+	// S3
 	public static String LAYER_ORDER_INVALID =
 			ISSUE_CODE_PREFIX + "LayerOrderInvalid";
 	
@@ -181,6 +186,186 @@ public class RoboArchValidator extends AbstractRoboArchValidator {
 	    }
 		
 	}
+	
+
+	// S3
+	@Check
+	public void layerOrder(System sys) { 
+		
+		List<Layer> conLyrs = sys.getLayers().stream().filter( l -> l instanceof ControlLayer ).collect(Collectors.toList());
+		 
+		List<Layer>  exeLyrs = sys.getLayers().stream().filter( l -> l instanceof ExecutiveLayer ).collect(Collectors.toList());
+		
+		List<Layer> plnLyrs = sys.getLayers().stream().filter( l -> l instanceof PlanningLayer ).collect(Collectors.toList());
+		
+		
+		/* If there are three of the distinct layer types then validate the ordering by checking that the control and planning layers
+	       are not associated via connections ignoring generic layers.  */
+		if( !conLyrs.isEmpty() && !exeLyrs.isEmpty() && !plnLyrs.isEmpty() ) {
+			
+			Layer  controlLayer  = conLyrs.get(0); // There can only be one control layer	
+			
+			// Find all the connections directly involving the control layer
+			Stack<Connection> conConnections = new Stack<Connection>();
+			
+			conConnections.addAll( sys.getConnections().stream().filter( c -> ( c.getFrom() instanceof ControlLayer ) || 
+					                                                          ( c.getTo() instanceof ControlLayer) 
+					                                                     ).collect(Collectors.toList()) ) ; 
+			
+			
+			// If there is a connection between the control and planning layers the ordering is incorrect as there are 3 possible types
+			boolean controlPlanningAreConnected = false;
+			
+			while( !conConnections.isEmpty() && !controlPlanningAreConnected) {
+				
+				Connection currentConnection = conConnections.pop();
+				
+				List<Class> connectedLayers = findDestinationLayerTypeFromSystemsConnections( currentConnection, ControlLayer.class, sys.getConnections() );
+				
+				controlPlanningAreConnected = connectedLayers.stream().anyMatch( lc -> PlanningLayer.class.isAssignableFrom(lc) );
+			}
+			
+			if (controlPlanningAreConnected) {
+				error("The ordering of layer types ignoring generic types must be Control < Executive < Planning.", RoboArchPackage.Literals.SYSTEM__CONNECTIONS , LAYER_ORDER_INVALID);
+			}
+			
+		}
+	}	
+	
+	
+	/* Follows the connections via generic layers until an associated Control, Executive, and Planning layer is found  */
+	private <T extends Layer> List<Class> findDestinationLayerTypeFromSystemsConnections( Connection start , Class<T> startType, List<Connection> systemConnections) {
+		
+		boolean newAssociationsToCheck;
+		
+		List<Connection> currentBaseConnections = new ArrayList<Connection>();
+		currentBaseConnections.add(start);
+		
+		List<Connection> checkedConnections = new ArrayList<Connection>();
+		
+		
+		List<Class> destinationTypes = new ArrayList<Class>();
+		
+		
+		if ( !startType.isInstance(start.getFrom()) &&  !startType.isInstance(start.getTo()) ) {
+			
+			throw new IllegalArgumentException("The startType does not match either the start connection from or to.");
+		}
+		
+				
+		boolean searchDirectionFromTo = startType.isInstance(start.getFrom()); // Determines the direction that is searched
+		
+		
+		ConnectionNode currentConnectionNode; 
+		
+		if (searchDirectionFromTo) {	
+			currentConnectionNode = start.getTo();
+		} else {
+			currentConnectionNode = start.getFrom();
+		}
+		
+		
+		// Don't have to search if the connection is directly between two layer types of Control, Executive, and planning.
+		if ( searchDirectionFromTo && isControlExecutivePlanningType(start.getTo()) ) {
+		
+			destinationTypes.add( start.getTo().getClass() );
+			return destinationTypes;
+					
+		} else if ( !searchDirectionFromTo && isControlExecutivePlanningType(start.getFrom()) ) {
+			
+			destinationTypes.add(start.getFrom().getClass() );
+			return destinationTypes;
+		}
+		
+		
+		//Start layer is the source
+		do {
+			
+			
+			// Find all connections that are associated with the base connections
+			List<Connection> foundConnections= new ArrayList<Connection>();
+			
+			for(Connection baseConnection: currentBaseConnections){					
+				foundConnections.addAll( findAssociatedConnections( currentConnectionNode, baseConnection,  systemConnections) );
+			}
+				
+			newAssociationsToCheck =  !checkedConnections.containsAll( foundConnections );
+			
+			
+			if (newAssociationsToCheck) {
+				// update current type and base connection for next search
+				if (searchDirectionFromTo) {
+					currentConnectionNode= foundConnections.get(0).getTo();
+				} else {
+					currentConnectionNode= foundConnections.get(0).getFrom();
+				}
+				
+				currentBaseConnections.clear(); 
+				
+				// Check to see if the destinations of the found connections to see if they are Control, Executive, or Planning layer types
+				for(Connection c: foundConnections) {
+					
+					if ( searchDirectionFromTo && isControlExecutivePlanningType(c.getTo())  ) {
+						destinationTypes.add(c.getTo().getClass());
+						
+					} else if (!searchDirectionFromTo && isControlExecutivePlanningType(c.getFrom())) {
+						destinationTypes.add(c.getFrom().getClass());	
+						
+					} else {
+						// Haven't reached a layer type so add it to the list search next
+						currentBaseConnections.add(c);
+					}
+					
+					checkedConnections.add(c);
+				}
+			
+				foundConnections.clear(); // Prepare for next search
+			}
+		
+		} while ( newAssociationsToCheck );
+
+		return destinationTypes;
+	}
+	
+	
+	
+	private boolean isControlExecutivePlanningType( ConnectionNode lyr ) {
+		return ( lyr instanceof ControlLayer || lyr instanceof ExecutiveLayer || lyr instanceof PlanningLayer  );
+	}
+	
+	/* 
+	 *  From a set of connections finds all instances of connection related by a common layer for a given  connection and start node.  
+	 */
+	private List<Connection> findAssociatedConnections( ConnectionNode startNode, Connection base, List<Connection> cons ){
+		
+		List<Connection> connectionsToSearch = cons.stream().filter( c ->   !c.equals(base) ).collect(Collectors.toList()) ;
+		List<Connection> associatedConnections = new ArrayList<Connection>();
+		
+		if ( startNode.equals( base.getTo() ) ) {
+			
+			// The base matches the start node so find connection node associations that match the to type
+			associatedConnections.addAll( connectionsToSearch.stream().filter( c -> (  c.getTo().equals(base.getTo())   || 
+					                                                                   c.getFrom().equals(base.getTo())   
+					                                                  )     
+					                                            ).collect( Collectors.toList()) );                                              
+			
+			
+		} else if ( startNode.equals(base.getFrom()) ) {
+			
+			// The base matches the start node so find connection node associations that match the from type
+			associatedConnections.addAll( connectionsToSearch.stream().filter( c -> ( c.getFrom().equals(base.getFrom()) ||
+																                      c.getTo().equals(base.getFrom())
+																      )					
+																).collect(Collectors.toList()) );
+			
+		} else {
+			// No associated connections
+		}
+		
+		return associatedConnections;
+	}
+	
+		
 	
 	
 	

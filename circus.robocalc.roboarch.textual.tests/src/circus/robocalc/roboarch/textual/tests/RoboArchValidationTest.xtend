@@ -180,6 +180,202 @@ class RoboArchValidationTest {
 		sys.assertNoError(RoboArchValidator.LAYER_WITHOUT_IO)
 	}		 
 	 
+
+
+/*
+ *  S3: The order of layer types must be Control > Executive > Planning.
+ */
+ 	@Test
+	def void testNotLayerOrder() {
+		//Correctly connected ordered layers no error is raised.
+	'''
+		system stest
+		
+		
+		layer p: PlanningLayer { 
+			inputs = pi1;
+		 	outputs = po1;
+		 	
+		 	};  
+		
+		
+		layer e: ExecutiveLayer { 
+			outputs = eo2;
+			inputs = ei1, ei2;
+		} ;	 
+		
+		
+		layer g1 { 
+			outputs = g1o1, g1o2; 
+			inputs = g1i1, g1i2;
+		} ;  
+		
+		
+		layer g2 { 
+			outputs = g2o1, g2o2;
+			inputs = g2i1, g2i2;
+		} ; 
+		  
+		layer c: ControlLayer { 
+			outputs = co1, co2;
+			 inputs = ci1;
+		} ;	 
+		
+		
+		connections =  
+		    c on co1 to g2 on g2i1,
+		    c on co2 to g2 on g2i2, 
+		    
+		    g2 on g2o1 to g1 on g1i1,
+		    g2 on g2o2 to g1 on g1i2, 
+		    
+		    g1 on g1o1 to e on ei1, 
+		    g1 on g1o2 to e on ei2, 
+		    
+		    e on eo2 to p on pi1;
+		       
+		'''.parse.assertNoLayerOrder();
+	}
+ 
+ 
+ 	@Test
+	def void testLayerOrderDirect() {
+		// Incorrectly ordered layers with direct connection between planning 
+		// and control layer the correct error is raised.
+	'''
+		system stest
+		
+		
+		layer p: PlanningLayer { 
+			inputs = pi1;
+		 	outputs = po1;
+		 	
+		 	};  
+		
+		
+		layer e: ExecutiveLayer { 
+			outputs = eo2;
+			inputs = ei1, ei2;
+		} ;	 
+		
+		
+		layer g1 { 
+			outputs = g1o1, g1o2; 
+			inputs = g1i1, g1i2;
+		} ;  
+		
+		
+		layer g2 { 
+			outputs = g2o1, g2o2;
+			inputs = g2i1, g2i2;
+		} ; 
+		  
+		layer c: ControlLayer { 
+			outputs = co1, co2;
+			 inputs = ci1;
+		} ;	 
+		
+
+		connections =  
+		    c on co1 to g2 on g2i1,
+		    c on co2 to g2 on g2i2, 
+		    
+		    g2 on g2o1 to g1 on g1i1,
+		    g2 on g2o2 to g1 on g1i2, 
+		    
+		    g1 on g1o1 to e on ei1, 
+		    g1 on g1o2 to e on ei2, 
+		    
+		    e on eo2 to p on pi1, 
+		     
+		     
+		     
+		     p on po1 to c on ci1;     // Direct connection
+		     
+		'''.parse.assertLayerOrder();
+		
+	}
+	
+	@Test
+	def void testLayerOrderViaGeneric() {
+		// Incorrectly ordered layers with indirect connection between planning 
+		// and control layer via generic layer the correct error is raised.
+	'''
+		system stest
+		
+		
+		layer p: PlanningLayer { 
+			inputs = pi1;
+		 	outputs = po1;
+		 	
+		 	};  
+		
+		
+		layer e: ExecutiveLayer { 
+			outputs = eo2;
+			inputs = ei1, ei2;
+		} ;	 
+		
+		
+		layer g1 { 
+			outputs = g1o1, g1o2; 
+			inputs = g1i1, g1i2;
+		} ;  
+		
+		
+		layer g2 { 
+			outputs = g2o1, g2o2;
+			inputs = g2i1, g2i2;
+		} ; 
+		  
+		layer c: ControlLayer { 
+			outputs = co1, co2;
+			 inputs = ci1;
+		} ;	 
+		
+		layer g3 { 
+			outputs = g3o1;
+			inputs = g3i1;
+		} ; 
+		
+		connections =  
+		    c on co1 to g2 on g2i1,
+		    c on co2 to g2 on g2i2, 
+		    
+		    g2 on g2o1 to g1 on g1i1,
+		    g2 on g2o2 to g1 on g1i2, 
+		    
+		    g1 on g1o1 to e on ei1, 
+		    g1 on g1o2 to e on ei2, 
+		    
+		    e on eo2 to p on pi1, 
+		     
+		     
+		     
+		     g3 on g3o1 to c on ci1,  // Indirect connection via g3 
+		     p on po1 to g3 on g3i1;   
+		'''.parse.assertLayerOrder();
+	}
+	
+	def private assertLayerOrder(System sys){
+		sys.assertError(
+			RoboArchPackage.eINSTANCE.system,
+			RoboArchValidator.LAYER_ORDER_INVALID,
+			"The ordering of layer types ignoring generic types must be Control < Executive < Planning."
+		)
+	}	 	 
+
+	
+	def private assertNoLayerOrder(System sys){
+		sys.assertNoError(RoboArchValidator.LAYER_ORDER_INVALID)
+	}		
+	
+	
+	
+	
+	
+	
+	
 	
 	
 	
