@@ -86,12 +86,14 @@ public class RoboArchValidator extends AbstractRoboArchValidator {
 	public static String LAYER_ORDER_INVALID =
 			ISSUE_CODE_PREFIX + "LayerOrderInvalid";
 	
+	// S4 - Inherited from RoboArch validator.
+	//public static String CONNECTION_EVENT_TYPES =
+	//		ISSUE_CODE_PREFIX + "ConnectionEventTypes";		
+	
 	//TODO implement
 	public static String CONNECTION_DIRECTION =
 			ISSUE_CODE_PREFIX + "ConnectionDirection";		
-	
-	public static String CONNECTION_EVENT_TYPES =
-			ISSUE_CODE_PREFIX + "ConnectionEventTypes";			
+		
 	
 	//TODO implement
 	public static String CONNECTION_ASSOCIATIONS_LAYERS =

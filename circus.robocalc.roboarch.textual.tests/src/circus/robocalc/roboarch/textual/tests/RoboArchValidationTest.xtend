@@ -23,6 +23,7 @@ import circus.robocalc.roboarch.System
 import org.eclipse.xtext.testing.validation.ValidationTestHelper
 import circus.robocalc.roboarch.RoboArchPackage
 import circus.robocalc.roboarch.textual.validation.RoboArchValidator
+import circus.robocalc.robochart.RoboChartPackage
 
 @ExtendWith(InjectionExtension)
 @InjectWith(RoboArchInjectorProvider)
@@ -372,8 +373,85 @@ class RoboArchValidationTest {
 	
 	
 	
+/*
+ *  S4: Connections efrom and eto event types must match
+ */	
+
+	@Test
+	def void testConnectionEventTypesMatch() {
+		// Incorrectly ordered layers with indirect connection between planning 
+		// and control layer via generic layer the correct error is raised.
+	'''
+		system stest
+		
+		type T1
+		
+		type T2
+		
+		
+		layer e: ExecutiveLayer { 
+			outputs = eo2;
+			inputs = ei1:T1, ei2:T2;
+		} ;	 
+		
+		layer c: ControlLayer { 
+			outputs = co1:T1, co2:T2;
+			 inputs = ci1;
+		} ;	 
+		
+		
+		connections =  
+		    c on co1 to e on ei1,
+		    c on co2 to e on ei2 
+		    ; 
+	'''.parse().assertNoConnectionEventTypes();
 	
+	}
+
+	@Test
+	def void testConnectionEventTypes() {
+		// Incorrectly ordered layers with indirect connection between planning 
+		// and control layer via generic layer the correct error is raised.
+	'''
+		system stest
+		
+		type T1
+		
+		type T2
+		
+		
+		layer e: ExecutiveLayer { 
+			outputs = eo2;
+			inputs = ei1:T1, ei2:T1;
+		} ;	 
+		
+		layer c: ControlLayer { 
+			outputs = co1:T1, co2:T2;
+			 inputs = ci1;
+		} ;	 
+		
+		
+		connections =  
+		    c on co1 to e on ei1,
+		    c on co2 to e on ei2 
+		    ; 
+	'''.parse().assertConnectionEventTypes("co2", "c", "ei2", "e");
 	
+	}
+
+
+	def private assertConnectionEventTypes(System sys, String fromEventName, String fromNodeName,  String toEventName, String toNodeName ){
+		sys.assertError(
+			RoboChartPackage.eINSTANCE.connection,
+			"RPConnectionIncompatibleType",
+			"The events " + fromEventName + " on " + fromNodeName + " and " + toEventName + " on " + toNodeName + " have incompatible types"
+		)
+	}	
+
+	
+	def private assertNoConnectionEventTypes(System sys){
+		sys.assertNoError('RPConnectionIncompatibleType')
+	}
 	
 	
 	
@@ -431,13 +509,7 @@ class RoboArchValidationTest {
 		)
 	}
 	
-	def private assertConnectionEventTypes(System sys, String typeA, String typeB){
-		sys.assertError(
-			RoboArchPackage.eINSTANCE.system,
-			RoboArchValidator.CONNECTION_EVENT_TYPES,
-			"The source type '"+ typeA +"' of the connection does not match its destination type '"+ typeB +"'."
-		)
-	}	
+
 	
 	def private assertConnectionsAssociationsLayers(System sys, String layerName){
 		sys.assertError(
