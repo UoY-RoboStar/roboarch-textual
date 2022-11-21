@@ -90,7 +90,7 @@ public class RoboArchValidator extends AbstractRoboArchValidator {
 	//public static String CONNECTION_EVENT_TYPES =
 	//		ISSUE_CODE_PREFIX + "ConnectionEventTypes";		
 	
-	//TODO implement
+	// S5
 	public static String CONNECTION_DIRECTION =
 			ISSUE_CODE_PREFIX + "ConnectionDirection";		
 		
@@ -369,8 +369,57 @@ public class RoboArchValidator extends AbstractRoboArchValidator {
 	
 		
 	
+	// S4 
+
+	//    Inherited from RoboArch connections - Connection efrom and eto types must match.
 	
 	
+	// S5
+	
+	@Check
+	public void connectionFromIsAnOutput(Connection con ) {
+		
+		
+		if ( con.getFrom() instanceof Layer ) {
+			
+			Layer lyr = (Layer)  con.getFrom(); 
+			
+			//Check for inputs that are invalid 
+			if ( Model.isEventLayerInput( lyr, con.getEfrom() ) )  {
+			
+				error("The source of a connection must be an output.", RoboChartPackage.Literals.CONNECTION__EFROM , CONNECTION_DIRECTION);
+			}
+			
+
+		}
+		
+	} 
+	
+	@Check
+	public void connectionToIsAnInput(Connection con ) {
+
+		if ( con.getTo() instanceof Layer ) {
+			
+			Layer lyr = (Layer)  con.getTo(); 
+			
+			//Check for outputs that are invalid 
+			if ( Model.isEventLayerOutput( lyr, con.getEto() ) )  {
+				
+				error("The destination of a connection must be an input.", RoboChartPackage.Literals.CONNECTION__ETO , CONNECTION_DIRECTION);
+			}
+			
+		}
+		
+	} 
+	
+	
+	
+	
+	
+	
+	
+	
+	////////////////////////////////////////////////////////////////////////////
 	
 	@Check
 	public void layersAreDistinctTypes(System sys) {
@@ -442,41 +491,7 @@ public class RoboArchValidator extends AbstractRoboArchValidator {
 	}
 	
 	
-	@Check
-	public void connectionFromIsAnOutput(Connection con ) {
-		
-		
-		if ( con.getFrom() instanceof Layer ) {
-			
-			Layer lyr = (Layer)  con.getFrom(); 
-			
-			//Check for inputs that are invalid 
-			if ( Model.isEventLayerInput( lyr, con.getEfrom() ) )  {
-			
-				error("The source of a connection must be an output.", RoboChartPackage.Literals.CONNECTION__EFROM , CONNECTION_DIRECTION);
-			}
-			
 
-		}
-		
-	} 
-	
-	@Check
-	public void connectionToIsAnInput(Connection con ) {
-
-		if ( con.getTo() instanceof Layer ) {
-			
-			Layer lyr = (Layer)  con.getTo(); 
-			
-			//Check for outputs that are invalid 
-			if ( Model.isEventLayerOutput( lyr, con.getEto() ) )  {
-				
-				error("The destination of a connection must be an input.", RoboChartPackage.Literals.CONNECTION__ETO , CONNECTION_DIRECTION);
-			}
-			
-		}
-		
-	} 
 //	public static final String INVALID_NAME = "invalidName";
 //
 //	@Check

@@ -453,45 +453,130 @@ class RoboArchValidationTest {
 		sys.assertNoError('RPConnectionIncompatibleType')
 	}
 	
-	
-	
-	
-	
+
+
 /*
- *  The layers of a system must be distinct.
- */
- 
+ *  S5: Connections must only connect layer inputs to outputs or vice versa.
+ */	
+	
 	@Test
-	def void testLayersAreDistinctTypes() {
-		'''
-			system maildelivery 
+	def void testConnectionDirectionFrom() {
 
-			layer lyr1 : PlanningLayer {  };
-			layer lyr2 : ControlLayer {  };
-			layer lyr3 : ControlLayer {  };
-			
-		'''.parse.assertLayersAreDistinctTypes("lyr3")
-	}
+	'''
+		system stest
+		
+		type T1
+		type T2
+		
+		
+		layer e: ExecutiveLayer { 
+			outputs = eo2;
+			inputs = ei1:T1, ei2:T2;
+		} ;	 
+		
+		layer c: ControlLayer { 
+			outputs = co1:T1, co2:T2;
+			 inputs = ci1;
+		} ;	 
+		
+		
+		connections =  
+		    e on ei1 to e on ei1,
+		    c on co2 to e on ei2 
+		    ;   
+	'''.parse().assertConnectionDirectionFrom();
+	
+	}	
 
-	def private assertLayersAreDistinctTypes(System sys, String layerName){
+	@Test
+	def void testConnectionDirectionTo() {
+
+	'''
+		system stest
+		
+		type T1
+		type T2
+		
+		
+		layer e: ExecutiveLayer { 
+			outputs = eo2;
+			inputs = ei1:T1, ei2:T2;
+		} ;	 
+		
+		layer c: ControlLayer { 
+			outputs = co1:T1, co2:T2;
+			 inputs = ci1;
+		} ;	 
+		
+		
+		connections =  
+		    c on co1 to c on co1,
+		    c on co2 to e on ei2 
+		    ;   
+	'''.parse().assertConnectionDirectionTo();
+	
+	}	
+	
+	
+	@Test
+	def void testNotConnectionDirection() {
+
+	'''
+		system stest
+		
+		type T1
+		type T2
+		
+		
+		layer e: ExecutiveLayer { 
+			outputs = eo2;
+			inputs = ei1:T1, ei2:T2;
+		} ;	 
+		
+		layer c: ControlLayer { 
+			outputs = co1:T1, co2:T2;
+			 inputs = ci1;
+		} ;	 
+		
+		
+		connections =  
+		    c on co1 to e on ei1,
+		    c on co2 to e on ei2 
+		    ; 
+	'''.parse().assertNoConnectionDirection();
+	
+	}	
+
+
+	def private assertConnectionDirectionFrom(System sys){
 		sys.assertError(
-			RoboArchPackage.eINSTANCE.system,
-			RoboArchValidator.LAYERS_NOT_DISTINCT_TYPES,
-			"Duplicate layer type '"+ layerName +"'. Layers must be distinct types."
+			RoboChartPackage.eINSTANCE.connection,
+			RoboArchValidator.CONNECTION_DIRECTION,
+			"The source of a connection must be an output."
 		)
+	}	
+
+	def private assertConnectionDirectionTo(System sys){
+		sys.assertError(
+			RoboChartPackage.eINSTANCE.connection,
+			RoboArchValidator.CONNECTION_DIRECTION,
+			"The destination of a connection must be an input."
+		)
+	}	
+	
+	def private assertNoConnectionDirection(System sys){
+		sys.assertNoError(RoboArchValidator.CONNECTION_DIRECTION)
 	}
 	
+
+
+
+
+
 	
 	
-	
-	
-	def private assertRoboticPlatformUnused(System sys, String platformName){
-		sys.assertError(
-			RoboArchPackage.eINSTANCE.system,
-			RoboArchValidator.ROBOTIC_PLATFORM_UNUSED,
-			"The robotic platform '"+ platformName +"' is not used by any layer."
-		)
-	}
+
+
 
 	def private assertLayerWithoutIO(System sys, String layerName){
 		sys.assertError(
@@ -501,15 +586,6 @@ class RoboArchValidationTest {
 		)
 	}
 	
-	def private assertLayerOrderIvalid(System sys){
-		sys.assertError(
-			RoboArchPackage.eINSTANCE.system,
-			RoboArchValidator.LAYER_ORDER_INVALID,
-			"The order of layers the connections impose is invalid. It must be Planning <> Executive <> Control."
-		)
-	}
-	
-
 	
 	def private assertConnectionsAssociationsLayers(System sys, String layerName){
 		sys.assertError(
