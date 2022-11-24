@@ -95,7 +95,7 @@ public class RoboArchValidator extends AbstractRoboArchValidator {
 			ISSUE_CODE_PREFIX + "ConnectionDirection";		
 		
 	
-	//TODO implement
+	// S6
 	public static String CONNECTION_ASSOCIATIONS_LAYERS =
 			ISSUE_CODE_PREFIX + "ConnectionsAssociationsLayers";		
 	
@@ -414,7 +414,42 @@ public class RoboArchValidator extends AbstractRoboArchValidator {
 	
 	
 	
+	// S6
 	
+	@Check
+	public void connectionsLayerTotalAssociations(Layer lyr ) {
+		
+		System sys = (System) lyr.eContainer();
+		
+		Set<ConnectionNode> connectedLyrs = new HashSet<ConnectionNode>();
+		
+		
+		// Find associated connections from then to 
+		
+		List<Connection> associatedConnectionsFrom =  sys.getConnections().stream().filter( c -> (  c.getFrom().equals(lyr) ) 
+				                                                                            ).collect( Collectors.toList() )  ;   
+		for(Connection c: associatedConnectionsFrom) {
+			connectedLyrs.add( c.getTo() );
+		}
+		
+		
+		List<Connection> associatedConnectionsTo =  sys.getConnections().stream().filter( c -> (  c.getTo().equals(lyr) ) 
+																							).collect( Collectors.toList() )  ; 
+		for(Connection c: associatedConnectionsTo) {
+			connectedLyrs.add( c.getFrom() );
+		}		
+		
+		// Remove any type that are not layers
+		associatedConnectionsFrom.removeIf( node -> !( node instanceof Layer) ) ;
+		
+		
+		// Check the maximum number of layers
+		if ( connectedLyrs.size() > 2 ) {
+			error("Layer '"+ lyr.getName() +"' is associated with '" + connectedLyrs.size() + "' layers. A layer must only be associated with at most two other layers.", 
+					RoboChartPackage.Literals.NAMED_ELEMENT__NAME , CONNECTION_ASSOCIATIONS_LAYERS);
+		}
+		
+	}
 	
 	
 	

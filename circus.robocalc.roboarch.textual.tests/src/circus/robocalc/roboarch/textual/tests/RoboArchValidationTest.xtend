@@ -570,12 +570,88 @@ class RoboArchValidationTest {
 	
 
 
+/*
+ *  S6: Connections must only associate a layer with at most two other layers.
+ */	
 
+	
+	@Test
+	def void testConnectionAssociationThreeLayers() {
+
+	'''
+		system stest
+	
+		layer p: PlanningLayer { 
+			outputs = po1;
+		} ;	 
+		
+		layer e: ExecutiveLayer { 
+			outputs = eo1, eo2;
+			inputs = ei1;
+		} ;	 
+		
+		layer c: ControlLayer { 
+			 inputs = ci1;
+		} ;	 
+		
+		layer g { 
+			 inputs = gi1;
+		} ;	 
+		
+		connections =  
+		    p on po1 to e on ei1,
+		    e on eo1 to c on ci1,
+		    e on eo2 to g on gi1
+		    ;   
+	'''.parse().assertConnectionsAssociationsLayers( "e", "3" );
+	
+	}	
+
+	@Test
+	def void testConnectionAssociationTwoLayers() {
+
+	'''
+		system stest
+	
+		layer p: PlanningLayer { 
+			outputs = po1;
+		} ;	 
+		
+		layer e: ExecutiveLayer { 
+			outputs = eo1, eo2;
+			inputs = ei1;
+		} ;	 
+		
+		layer c: ControlLayer { 
+			 inputs = ci1;
+		} ;	 
+		
+		
+		connections =  
+		    p on po1 to e on ei1,
+		    e on eo1 to c on ci1,
+		    ;   
+
+	'''.parse().assertNoConnectionAssociationsLayers();
+	
+	}	
 
 
 	
+	def private assertConnectionsAssociationsLayers(System sys, String layerName, String number){
+		sys.assertError(
+			RoboArchPackage.eINSTANCE.layer,
+			RoboArchValidator.CONNECTION_ASSOCIATIONS_LAYERS,
+			"Layer '"+ layerName +"' is associated with '" + number + "' layers. A layer must only be associated with at most two other layers."
+		)
+	}
 	
-
+	def private assertNoConnectionAssociationsLayers(System sys){
+		sys.assertNoError(RoboArchValidator.CONNECTION_ASSOCIATIONS_LAYERS)
+	}
+	
+	
+//////////////////////////////////////////////////////////////
 
 
 	def private assertLayerWithoutIO(System sys, String layerName){
@@ -586,15 +662,7 @@ class RoboArchValidationTest {
 		)
 	}
 	
-	
-	def private assertConnectionsAssociationsLayers(System sys, String layerName){
-		sys.assertError(
-			RoboArchPackage.eINSTANCE.system,
-			RoboArchValidator.CONNECTION_ASSOCIATIONS_LAYERS,
-			"Layer '"+ layerName +"' is associated more than two other layers."
-		)
-	}
-	
+
 
 	def private assertConnectionsAssociationsControlLayer(System sys, String layerName){
 		sys.assertError(
