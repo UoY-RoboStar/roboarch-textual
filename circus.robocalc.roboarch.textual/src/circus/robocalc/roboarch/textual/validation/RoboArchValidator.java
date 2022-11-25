@@ -47,6 +47,8 @@ import circus.robocalc.roboarch.System;
 import circus.robocalc.roboarch.util.Model;
 import circus.robocalc.robochart.Connection;
 import circus.robocalc.robochart.ConnectionNode;
+import circus.robocalc.robochart.Event;
+import circus.robocalc.robochart.Interface;
 import circus.robocalc.robochart.RoboChartPackage;
 import circus.robocalc.robochart.RoboticPlatform;
 
@@ -66,12 +68,7 @@ public class RoboArchValidator extends AbstractRoboArchValidator {
 	 * Top Level
 	 */
 	
-	//old
-	public static String LAYERS_NOT_DISTINCT_TYPES =
-			ISSUE_CODE_PREFIX + "LayerTypesNotDistinct";
-	
-
-	///////////////////////////////////////////////////////
+    ////////////////////////////////////////////////////////////////////////////
 	
 
 	// S1
@@ -103,11 +100,11 @@ public class RoboArchValidator extends AbstractRoboArchValidator {
 	public static String CONNECTION_ASSOCIATIONS_CONTROLLAYER =
 			ISSUE_CODE_PREFIX + "ConnectionsAssociationsControlLayer";	
 	
-	//TODO implement
+	//S8
 	public static String CONNECTIONS_PLATFORM_ASSOCIATION =
 			ISSUE_CODE_PREFIX + "ConnectionsPlatformAssociation";	
 
-	//	TODO Update according to latest well-formedness
+    ////////////////////////////////////////////////////////////////////////////
 	 
 
 	// S1
@@ -456,35 +453,49 @@ public class RoboArchValidator extends AbstractRoboArchValidator {
 	}
 	
 	
+	// S8
+	@Check
+	public void connectionPlatformAssosciation(Connection con) {
+		
+		boolean nonPlatformCommunicatorAssociatedFrom = false;
+		boolean nonPlatformCommunicatorAssociatedTo = false;
+		
+		System sys = (System) con.eContainer(); 
+			
+		// Find all of the defined interface events
+		List<Event> definedInterfaceEvents = new ArrayList<Event>();
+		
+		for ( Interface i:  sys.getInterfaces() ) {
+			definedInterfaceEvents.addAll( i.getEvents() );
+		}
+		
+		
+		// Check for associations between defined interfaces 
+		nonPlatformCommunicatorAssociatedFrom = ( !(con.getFrom() instanceof RoboticPlatform) && definedInterfaceEvents.contains(con.getEfrom()) && !(con.getTo() instanceof RoboticPlatform) );  // Check from
+                                               
+		nonPlatformCommunicatorAssociatedTo = ( !(con.getTo() instanceof RoboticPlatform) && definedInterfaceEvents.contains(con.getEto()) && !(con.getFrom() instanceof RoboticPlatform) ) ; // Check to
+		
+			                         
+		if (nonPlatformCommunicatorAssociatedFrom) {
+			error("Connections must only associate Control or Generic layer events of defined interfaces with the robotic platform.", 
+					 RoboChartPackage.Literals.CONNECTION__TO, CONNECTIONS_PLATFORM_ASSOCIATION);			
+		}
+		
+		if (nonPlatformCommunicatorAssociatedTo) {
+			error("Connections must only associate Control or Generic layer events of defined interfaces with the robotic platform.", 
+					 RoboChartPackage.Literals.CONNECTION__FROM, CONNECTIONS_PLATFORM_ASSOCIATION);			
+		}
+			
+	}
+	
+	
 	
 	
 	////////////////////////////////////////////////////////////////////////////
 	
-	@Check
-	public void layersAreDistinctTypes(System sys) {
-		Set< Class<Layer> > layerTypes = new HashSet();
-		List<Layer> systemLayers = sys.getLayers(); 
-		Layer duplicateLayerType=null;
-		
-		for (Layer l: systemLayers) {
-			boolean duplicateType =
-				!layerTypes.add( (Class<Layer>) l.getClass() );
-			
-			if (duplicateType) {
-				duplicateLayerType = l;
-			}
-		}
-		
-		if (systemLayers.size() != layerTypes.size() ) {
-			error("Duplicate layer type '"+ duplicateLayerType.getName() +"'. Layers must be distinct types.",
-					RoboArchPackage.Literals.SYSTEM__LAYERS, LAYERS_NOT_DISTINCT_TYPES);
-					
-		}
-		
-	}
+	/* Patterns */
 	
-
-
+	
 	@Check
 	public void controlLayerPatterns(ControlLayer lyr) {
 		Pattern lyrPattern = lyr.getPattern();
@@ -531,18 +542,7 @@ public class RoboArchValidator extends AbstractRoboArchValidator {
 	
 	
 
-//	public static final String INVALID_NAME = "invalidName";
-//
-//	@Check
-//	public void checkGreetingStartsWithCapital(Greeting greeting) {
-//		if (!Character.isUpperCase(greeting.getName().charAt(0))) {
-//			warning("Name should start with a capital",
-//					RoboArchPackage.Literals.GREETING__NAME,
-//					INVALID_NAME);
-//		}
-//	}
-	
-	
+	////////////////////////////////////////////////////////////////////////////
 	
 	
 	/* 

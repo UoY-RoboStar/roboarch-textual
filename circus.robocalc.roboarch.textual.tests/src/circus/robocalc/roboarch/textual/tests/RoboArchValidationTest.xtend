@@ -652,7 +652,7 @@ class RoboArchValidationTest {
 
 
 /*
- *  S7: Connections involving the ControlLayey  must only associate with at   most one other layer..
+ *  S7: Connections involving the ControlLayer  must only associate with at most one other layer.
  */	
  
  	@Test
@@ -731,8 +731,186 @@ class RoboArchValidationTest {
 	}
  
  
+ /*
+  *  S8: Connections must only associate events of defined interfaces of Generic and Control Layers with the .
+  */	
+ 
+	@Test
+	def void testConnectionAssociationDefinedInterfaceWithPlatformControl() {
+
+	'''
+		 system stest
+		 
+		 interface i1 {
+		 	event i1e1	
+		 }
+		 
+		 layer e: ExecutiveLayer { 
+		 
+		 	outputs = eo1;
+		 	inputs = ei1;
+		 } ;	 
+		 
+		 layer c: ControlLayer { 
+		 	 uses i1
+		 	 
+		 	 inputs = ci1;
+		 } ;	 
+		 
+		 layer g { 
+		 	uses i1
+		 
+		 	 inputs = gi1;
+		 } ;	 
+		 
+		 connections =  
+		     c on i1e1 to e on ei1  // Between a layer other than the robotic platform
+		     ;   
+		 
+		      
+		 robotic platform rp1 { 
+		 	uses i1
+		 } 
+	'''.parse().assertConnectionsPlatformAssociation();
+	
+	}	
+	
+	@Test
+	def void testConnectionAssociationDefinedInterfaceWithPlatformGeneral() {
+
+	'''
+ 		 system stest
+ 		 
+ 		 interface i1 {
+ 		 	event i1e1	
+ 		 }
+ 		 
+ 		 layer e: ExecutiveLayer { 
+ 		 
+ 		 	outputs = eo1;
+ 		 	inputs = ei1;
+ 		 } ;	 
+ 		 
+ 		 layer c: ControlLayer { 
+ 		 	 uses i1
+ 		 	 
+ 		 	 inputs = ci1;
+ 		 } ;	 
+ 		 
+ 		 layer g { 
+ 		 	uses i1
+ 		 
+ 		 	 inputs = gi1;
+ 		 } ;	 
+ 		 
+ 		 connections =  
+ 		     
+ 		     g on i1e1 to e on ei1 // Between a layer other than the robotic platform
+ 		     
+ 		     ;   
+ 		 
+ 		      
+ 		 robotic platform rp1 { 
+ 		 	uses i1
+ 		 } 
+	'''.parse().assertConnectionsPlatformAssociation();
+	
+	}	
+
+	@Test
+	def void testNotConnectionAssociationDefinedInterfaceWithPlatformControl() {
+
+	'''
+		 system stest
+		 
+		 interface i1 {
+		 	event i1e1	
+		 }
+		 
+		 layer e: ExecutiveLayer { 
+		 
+		 	outputs = eo1;
+		 	inputs = ei1;
+		 } ;	 
+		 
+		 layer c: ControlLayer { 
+		 	 uses i1
+		 	 
+		 	 inputs = ci1;
+		 } ;	 
+		 
+		 layer g { 
+		 	uses i1
+		 
+		 	 inputs = gi1;
+		 } ;	 
+		 
+		 connections =  
+
+		     c on i1e1 to rp1 on i1e1
+		     
+		     ;   
+		 
+		      
+		 robotic platform rp1 { 
+		 	uses i1
+		 } 
+	'''.parse().assertNoConnectionPlatformAssociation();
+	
+	}	 
+	
+	@Test
+	def void testNotConnectionAssociationDefinedInterfaceWithPlatformGeneral() {
+
+	'''
+		 system stest
+		 
+		 interface i1 {
+		 	event i1e1	
+		 }
+		 
+		 layer e: ExecutiveLayer { 
+		 
+		 	outputs = eo1;
+		 	inputs = ei1;
+		 } ;	 
+		 
+		 layer c: ControlLayer { 
+		 	 uses i1
+		 	 
+		 	 inputs = ci1;
+		 } ;	 
+		 
+		 layer g { 
+		 	uses i1
+		 
+		 	 inputs = gi1;
+		 } ;	 
+		 
+		 connections =       
+		     g on i1e1 to rp1 on i1e1
+		     ;   
+		 
+		      
+		 robotic platform rp1 { 
+		 	uses i1
+		 } 
+	'''.parse().assertNoConnectionPlatformAssociation();
+	
+	}	 
  
  
+  	def private assertConnectionsPlatformAssociation(System sys){
+		sys.assertError(
+			RoboChartPackage.eINSTANCE.connection,
+			RoboArchValidator.CONNECTIONS_PLATFORM_ASSOCIATION,
+			"Connections must only associate Control or Generic layer events of defined interfaces with the robotic platform."
+		)
+	}
+	
+	def private assertNoConnectionPlatformAssociation(System sys){
+		sys.assertNoError(RoboArchValidator.CONNECTIONS_PLATFORM_ASSOCIATION)
+	}
 	
 	
 //////////////////////////////////////////////////////////////
