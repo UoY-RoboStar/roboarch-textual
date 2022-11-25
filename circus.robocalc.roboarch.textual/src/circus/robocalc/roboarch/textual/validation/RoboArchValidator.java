@@ -99,7 +99,7 @@ public class RoboArchValidator extends AbstractRoboArchValidator {
 	public static String CONNECTION_ASSOCIATIONS_LAYERS =
 			ISSUE_CODE_PREFIX + "ConnectionsAssociationsLayers";		
 	
-	//TODO implement
+	// S7
 	public static String CONNECTION_ASSOCIATIONS_CONTROLLAYER =
 			ISSUE_CODE_PREFIX + "ConnectionsAssociationsControlLayer";	
 	
@@ -414,7 +414,7 @@ public class RoboArchValidator extends AbstractRoboArchValidator {
 	
 	
 	
-	// S6
+	// S6 and S7
 	
 	@Check
 	public void connectionsLayerTotalAssociations(Layer lyr ) {
@@ -444,7 +444,11 @@ public class RoboArchValidator extends AbstractRoboArchValidator {
 		
 		
 		// Check the maximum number of layers
-		if ( connectedLyrs.size() > 2 ) {
+		if ( (lyr instanceof ControlLayer) && connectedLyrs.size() > 1) { // S7	
+			error("Layer '"+ lyr.getName() +"' is associated with '" + connectedLyrs.size() + "' layers. A Control layer must only be associated with at most one other layer.", 
+					RoboChartPackage.Literals.NAMED_ELEMENT__NAME , CONNECTION_ASSOCIATIONS_CONTROLLAYER);
+		
+		} else if ( connectedLyrs.size() > 2 ) { // S6
 			error("Layer '"+ lyr.getName() +"' is associated with '" + connectedLyrs.size() + "' layers. A layer must only be associated with at most two other layers.", 
 					RoboChartPackage.Literals.NAMED_ELEMENT__NAME , CONNECTION_ASSOCIATIONS_LAYERS);
 		}

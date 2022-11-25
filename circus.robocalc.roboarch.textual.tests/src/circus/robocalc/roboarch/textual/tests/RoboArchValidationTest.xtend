@@ -649,6 +649,90 @@ class RoboArchValidationTest {
 	def private assertNoConnectionAssociationsLayers(System sys){
 		sys.assertNoError(RoboArchValidator.CONNECTION_ASSOCIATIONS_LAYERS)
 	}
+
+
+/*
+ *  S7: Connections involving the ControlLayey  must only associate with at   most one other layer..
+ */	
+ 
+ 	@Test
+	def void testConnectionAssociationControlLayerTwo() {
+
+	'''
+		system stest
+	
+		layer p: PlanningLayer { 
+			outputs = po1;
+		} ;	 
+		
+		layer e: ExecutiveLayer { 
+			outputs = eo1, eo2;
+			inputs = ei1;
+		} ;	 
+		
+		layer c: ControlLayer { 
+			 inputs = ci1;
+			 outputs = co2;
+		} ;	 
+		
+		layer g { 
+			 inputs = gi1;
+		} ;	 
+		
+		connections =  
+		    p on po1 to e on ei1,
+		    e on eo1 to c on ci1,
+		    c on co2 to g on gi1
+		    ;   
+	'''.parse().assertConnectionsAssociationsControlLayer( "c", "2" );
+	
+	}	
+
+	@Test
+	def void testConnectionAssociationControLayerOne() {
+
+	'''
+		system stest
+	
+		layer p: PlanningLayer { 
+			outputs = po1;
+		} ;	 
+		
+		layer e: ExecutiveLayer { 
+			outputs = eo1, eo2;
+			inputs = ei1;
+		} ;	 
+		
+		layer c: ControlLayer { 
+			 inputs = ci1;
+		} ;	 
+		
+		
+		connections =  
+		    p on po1 to e on ei1,
+		    e on eo1 to c on ci1,
+		    ;   
+
+	'''.parse().assertNoConnectionAssociationsControlLayer();
+	
+	}	
+ 
+ 
+ 	def private assertConnectionsAssociationsControlLayer(System sys, String layerName, String number){
+		sys.assertError(
+			RoboArchPackage.eINSTANCE.layer,
+			RoboArchValidator.CONNECTION_ASSOCIATIONS_CONTROLLAYER,
+			"Layer '"+ layerName +"' is associated with '" + number + "' layers. A Control layer must only be associated with at most one other layer."
+		)
+	}
+	
+	def private assertNoConnectionAssociationsControlLayer(System sys){
+		sys.assertNoError(RoboArchValidator.CONNECTION_ASSOCIATIONS_CONTROLLAYER)
+	}
+ 
+ 
+ 
+ 
 	
 	
 //////////////////////////////////////////////////////////////
