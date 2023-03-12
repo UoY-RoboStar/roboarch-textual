@@ -16,9 +16,18 @@
  */
 package circus.robocalc.roboarch.textual.validation;
 
+import java.lang.reflect.Method;
+import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
+import java.util.Stack;
+import java.util.function.Supplier;
+import java.util.stream.Collectors;
+
+import org.eclipse.emf.ecore.EObject;
+import org.eclipse.emf.ecore.EStructuralFeature;
+import org.eclipse.emf.ecore.util.EcoreUtil;
 
 import org.eclipse.xtext.validation.Check;
 
@@ -30,13 +39,18 @@ import circus.robocalc.roboarch.Layer;
 import circus.robocalc.roboarch.Pattern;
 import circus.robocalc.roboarch.PlannerScheduler;
 import circus.robocalc.roboarch.PlanningLayer;
+import circus.robocalc.roboarch.PlatformCommunicator;
 import circus.robocalc.roboarch.ReactiveSkills;
 import circus.robocalc.roboarch.RoboArchPackage;
 import circus.robocalc.roboarch.Subsumption;
 import circus.robocalc.roboarch.System;
 import circus.robocalc.roboarch.util.Model;
 import circus.robocalc.robochart.Connection;
+import circus.robocalc.robochart.ConnectionNode;
+import circus.robocalc.robochart.Event;
+import circus.robocalc.robochart.Interface;
 import circus.robocalc.robochart.RoboChartPackage;
+import circus.robocalc.robochart.RoboticPlatform;
 
 
 /**
@@ -54,75 +68,434 @@ public class RoboArchValidator extends AbstractRoboArchValidator {
 	 * Top Level
 	 */
 	
-	//old
-	public static String LAYERS_NOT_DISTINCT_TYPES =
-			ISSUE_CODE_PREFIX + "LayerTypesNotDistinct";
+    ////////////////////////////////////////////////////////////////////////////
 	
-	//old
-	public static String LAYER_WITHOUT_PATTERN =
-			ISSUE_CODE_PREFIX + "LayerWithoutPattern";
-	
-	///////////////////////////////////////////////////////
-	
-	//TODO implement
+
+	// S1
 	public static String ROBOTIC_PLATFORM_UNUSED =
 			ISSUE_CODE_PREFIX + "RoboticPlatformUnused";	
 	
-	//TODO implement
+	// S2
 	public static String LAYER_WITHOUT_IO =
 			ISSUE_CODE_PREFIX + "LayerWithoutIO";		
 	
-	//TODO implement
+	// S3
 	public static String LAYER_ORDER_INVALID =
 			ISSUE_CODE_PREFIX + "LayerOrderInvalid";
 	
-	//TODO implement
+	// S4 - Inherited from RoboArch validator.
+	//public static String CONNECTION_EVENT_TYPES =
+	//		ISSUE_CODE_PREFIX + "ConnectionEventTypes";		
+	
+	// S5
 	public static String CONNECTION_DIRECTION =
 			ISSUE_CODE_PREFIX + "ConnectionDirection";		
+		
 	
-	public static String CONNECTION_EVENT_TYPES =
-			ISSUE_CODE_PREFIX + "ConnectionEventTypes";			
-	
-	//TODO implement
+	// S6
 	public static String CONNECTION_ASSOCIATIONS_LAYERS =
 			ISSUE_CODE_PREFIX + "ConnectionsAssociationsLayers";		
 	
-	//TODO implement
+	// S7
 	public static String CONNECTION_ASSOCIATIONS_CONTROLLAYER =
 			ISSUE_CODE_PREFIX + "ConnectionsAssociationsControlLayer";	
 	
-	//TODO implement
+	//S8
 	public static String CONNECTIONS_PLATFORM_ASSOCIATION =
 			ISSUE_CODE_PREFIX + "ConnectionsPlatformAssociation";	
 
-	//	TODO Update according to latest well-formedness
+    ////////////////////////////////////////////////////////////////////////////
 	 
 
+	// S1
 	@Check
-	public void layersAreDistinctTypes(System sys) {
-		Set< Class<Layer> > layerTypes = new HashSet();
-		List<Layer> systemLayers = sys.getLayers(); 
-		Layer duplicateLayerType=null;
+	public void roboticPlatformIsUsed(System sys) {
 		
-		for (Layer l: systemLayers) {
-			boolean duplicateType =
-				!layerTypes.add( (Class<Layer>) l.getClass() );
+		// Check connections for one that exists between a layer and the platform 
+		boolean layerConnectionExists; 
+		
+		Stack<Connection>  systemConnections = new Stack<Connection>();
+		systemConnections.addAll( sys.getConnections() );
+		
+		layerConnectionExists = false;
+		
+		while (!layerConnectionExists && !systemConnections.empty() ) {
+			Connection con = systemConnections.pop();
 			
-			if (duplicateType) {
-				duplicateLayerType = l;
+			if( con.getFrom() instanceof RoboticPlatform ) {
+				layerConnectionExists = con.getTo() instanceof Layer;
+				
+			} else if ( con.getTo() instanceof RoboticPlatform ){
+				layerConnectionExists = con.getFrom() instanceof Layer;
+				
+			} else {
+				layerConnectionExists = false; // Not a connection involving the RoboticPlatform
 			}
+				
 		}
 		
-		if (systemLayers.size() != layerTypes.size() ) {
-			error("Duplicate layer type '"+ duplicateLayerType.getName() +"'. Layers must be distinct types.",
-					RoboArchPackage.Literals.SYSTEM__LAYERS, LAYERS_NOT_DISTINCT_TYPES);
-					
+		
+	    // Check for a layer with an rInterface
+		Stack<PlatformCommunicator> platformCommunicableLayers = new Stack<PlatformCommunicator>();
+		
+		platformCommunicableLayers.addAll( EcoreUtil.getObjectsByType(sys.getLayers(), RoboArchPackage.Literals.PLATFORM_COMMUNICATOR) ); 
+		boolean layerWithRinterfaceExists;
+		
+		if ( platformCommunicableLayers.empty() ) {
+			
+			layerWithRinterfaceExists = false;
 		}
+		else {
+			layerWithRinterfaceExists = false;
+
+			while(!layerWithRinterfaceExists && !platformCommunicableLayers.empty() ) {
+				PlatformCommunicator layer = platformCommunicableLayers.pop();
+				
+				layerWithRinterfaceExists = (layer.getRinterfaces().size() > 0); 
+			}
+		
+		}
+		
+		if ( !layerConnectionExists && !layerWithRinterfaceExists) {
+			error("The robotic platform must be used.", RoboArchPackage.Literals.SYSTEM__ROBOT , ROBOTIC_PLATFORM_UNUSED);
+		}
+		
+	   
+	}
+	
+
+	
+	
+	// S2
+	@Check
+	public void layerWithoutInputOrOutput(Layer lyr) { 
+		
+		EObject lyrParent = lyr.eContainer();
+		
+	    if (lyrParent instanceof System) {
+	    	System sys = (System) lyrParent ;
+	    	
+			if ( sys.getLayers().size() > 1 ) {
+				
+					if( lyr.getInputs().isEmpty() && lyr.getOutputs().isEmpty() ) {
+						error("Layer '" + lyr.getName() + "' has no inputs or outputs.", RoboArchPackage.Literals.LAYER__INPUTS , LAYER_WITHOUT_IO);
+					}
+				
+			}
+	    }
 		
 	}
 	
 
+	// S3
+	@Check
+	public void layerOrder(System sys) { 
+		
+		List<Layer> conLyrs = sys.getLayers().stream().filter( l -> l instanceof ControlLayer ).collect(Collectors.toList());
+		 
+		List<Layer>  exeLyrs = sys.getLayers().stream().filter( l -> l instanceof ExecutiveLayer ).collect(Collectors.toList());
+		
+		List<Layer> plnLyrs = sys.getLayers().stream().filter( l -> l instanceof PlanningLayer ).collect(Collectors.toList());
+		
+		
+		/* If there are three of the distinct layer types then validate the ordering by checking that the control and planning layers
+	       are not associated via connections ignoring generic layers.  */
+		if( !conLyrs.isEmpty() && !exeLyrs.isEmpty() && !plnLyrs.isEmpty() ) {
+			
+			Layer  controlLayer  = conLyrs.get(0); // There can only be one control layer	
+			
+			// Find all the connections directly involving the control layer
+			Stack<Connection> conConnections = new Stack<Connection>();
+			
+			conConnections.addAll( sys.getConnections().stream().filter( c -> ( c.getFrom() instanceof ControlLayer ) || 
+					                                                          ( c.getTo() instanceof ControlLayer) 
+					                                                     ).collect(Collectors.toList()) ) ; 
+			
+			
+			// If there is a connection between the control and planning layers the ordering is incorrect as there are 3 possible types
+			boolean controlPlanningAreConnected = false;
+			
+			while( !conConnections.isEmpty() && !controlPlanningAreConnected) {
+				
+				Connection currentConnection = conConnections.pop();
+				
+				List<Class> connectedLayers = findDestinationLayerTypeFromSystemsConnections( currentConnection, ControlLayer.class, sys.getConnections() );
+				
+				controlPlanningAreConnected = connectedLayers.stream().anyMatch( lc -> PlanningLayer.class.isAssignableFrom(lc) );
+			}
+			
+			if (controlPlanningAreConnected) {
+				error("The ordering of layer types ignoring generic types must be Control < Executive < Planning.", RoboArchPackage.Literals.SYSTEM__CONNECTIONS , LAYER_ORDER_INVALID);
+			}
+			
+		}
+	}	
+	
+	
+	/* Follows the connections via generic layers until an associated Control, Executive, and Planning layer is found  */
+	private <T extends Layer> List<Class> findDestinationLayerTypeFromSystemsConnections( Connection start , Class<T> startType, List<Connection> systemConnections) {
+		
+		boolean newAssociationsToCheck;
+		
+		List<Connection> currentBaseConnections = new ArrayList<Connection>();
+		currentBaseConnections.add(start);
+		
+		List<Connection> checkedConnections = new ArrayList<Connection>();
+		
+		
+		List<Class> destinationTypes = new ArrayList<Class>();
+		
+		
+		if ( !startType.isInstance(start.getFrom()) &&  !startType.isInstance(start.getTo()) ) {
+			
+			throw new IllegalArgumentException("The startType does not match either the start connection from or to.");
+		}
+		
+				
+		boolean searchDirectionFromTo = startType.isInstance(start.getFrom()); // Determines the direction that is searched
+		
+		
+		ConnectionNode currentConnectionNode; 
+		
+		if (searchDirectionFromTo) {	
+			currentConnectionNode = start.getTo();
+		} else {
+			currentConnectionNode = start.getFrom();
+		}
+		
+		
+		// Don't have to search if the connection is directly between two layer types of Control, Executive, and planning.
+		if ( searchDirectionFromTo && isControlExecutivePlanningType(start.getTo()) ) {
+		
+			destinationTypes.add( start.getTo().getClass() );
+			return destinationTypes;
+					
+		} else if ( !searchDirectionFromTo && isControlExecutivePlanningType(start.getFrom()) ) {
+			
+			destinationTypes.add(start.getFrom().getClass() );
+			return destinationTypes;
+		}
+		
+		
+		//Start layer is the source
+		do {
+			
+			
+			// Find all connections that are associated with the base connections
+			List<Connection> foundConnections= new ArrayList<Connection>();
+			
+			for(Connection baseConnection: currentBaseConnections){					
+				foundConnections.addAll( findAssociatedConnections( currentConnectionNode, baseConnection,  systemConnections) );
+			}
+				
+			newAssociationsToCheck =  !checkedConnections.containsAll( foundConnections );
+			
+			
+			if (newAssociationsToCheck) {
+				// update current type and base connection for next search
+				if (searchDirectionFromTo) {
+					currentConnectionNode= foundConnections.get(0).getTo();
+				} else {
+					currentConnectionNode= foundConnections.get(0).getFrom();
+				}
+				
+				currentBaseConnections.clear(); 
+				
+				// Check to see if the destinations of the found connections to see if they are Control, Executive, or Planning layer types
+				for(Connection c: foundConnections) {
+					
+					if ( searchDirectionFromTo && isControlExecutivePlanningType(c.getTo())  ) {
+						destinationTypes.add(c.getTo().getClass());
+						
+					} else if (!searchDirectionFromTo && isControlExecutivePlanningType(c.getFrom())) {
+						destinationTypes.add(c.getFrom().getClass());	
+						
+					} else {
+						// Haven't reached a layer type so add it to the list search next
+						currentBaseConnections.add(c);
+					}
+					
+					checkedConnections.add(c);
+				}
+			
+				foundConnections.clear(); // Prepare for next search
+			}
+		
+		} while ( newAssociationsToCheck );
 
+		return destinationTypes;
+	}
+	
+	
+	
+	private boolean isControlExecutivePlanningType( ConnectionNode lyr ) {
+		return ( lyr instanceof ControlLayer || lyr instanceof ExecutiveLayer || lyr instanceof PlanningLayer  );
+	}
+	
+	/* 
+	 *  From a set of connections finds all instances of connection related by a common layer for a given  connection and start node.  
+	 */
+	private List<Connection> findAssociatedConnections( ConnectionNode startNode, Connection base, List<Connection> cons ){
+		
+		List<Connection> connectionsToSearch = cons.stream().filter( c ->   !c.equals(base) ).collect(Collectors.toList()) ;
+		List<Connection> associatedConnections = new ArrayList<Connection>();
+		
+		if ( startNode.equals( base.getTo() ) ) {
+			
+			// The base matches the start node so find connection node associations that match the to type
+			associatedConnections.addAll( connectionsToSearch.stream().filter( c -> (  c.getTo().equals(base.getTo())   || 
+					                                                                   c.getFrom().equals(base.getTo())   
+					                                                  )     
+					                                            ).collect( Collectors.toList()) );                                              
+			
+			
+		} else if ( startNode.equals(base.getFrom()) ) {
+			
+			// The base matches the start node so find connection node associations that match the from type
+			associatedConnections.addAll( connectionsToSearch.stream().filter( c -> ( c.getFrom().equals(base.getFrom()) ||
+																                      c.getTo().equals(base.getFrom())
+																      )					
+																).collect(Collectors.toList()) );
+			
+		} else {
+			// No associated connections
+		}
+		
+		return associatedConnections;
+	}
+	
+		
+	
+	// S4 
+
+	//    Inherited from RoboArch connections - Connection efrom and eto types must match.
+	
+	
+	// S5
+	
+	@Check
+	public void connectionFromIsAnOutput(Connection con ) {
+		
+		
+		if ( con.getFrom() instanceof Layer ) {
+			
+			Layer lyr = (Layer)  con.getFrom(); 
+			
+			//Check for inputs that are invalid 
+			if ( Model.isEventLayerInput( lyr, con.getEfrom() ) )  {
+			
+				error("The source of a connection must be an output.", RoboChartPackage.Literals.CONNECTION__EFROM , CONNECTION_DIRECTION);
+			}
+			
+
+		}
+		
+	} 
+	
+	@Check
+	public void connectionToIsAnInput(Connection con ) {
+
+		if ( con.getTo() instanceof Layer ) {
+			
+			Layer lyr = (Layer)  con.getTo(); 
+			
+			//Check for outputs that are invalid 
+			if ( Model.isEventLayerOutput( lyr, con.getEto() ) )  {
+				
+				error("The destination of a connection must be an input.", RoboChartPackage.Literals.CONNECTION__ETO , CONNECTION_DIRECTION);
+			}
+			
+		}
+		
+	} 
+	
+	
+	
+	// S6 and S7
+	
+	@Check
+	public void connectionsLayerTotalAssociations(Layer lyr ) {
+		
+		System sys = (System) lyr.eContainer();
+		
+		Set<ConnectionNode> connectedLyrs = new HashSet<ConnectionNode>();
+		
+		
+		// Find associated connections from then to 
+		
+		List<Connection> associatedConnectionsFrom =  sys.getConnections().stream().filter( c -> (  c.getFrom().equals(lyr) ) 
+				                                                                            ).collect( Collectors.toList() )  ;   
+		for(Connection c: associatedConnectionsFrom) {
+			connectedLyrs.add( c.getTo() );
+		}
+		
+		
+		List<Connection> associatedConnectionsTo =  sys.getConnections().stream().filter( c -> (  c.getTo().equals(lyr) ) 
+																							).collect( Collectors.toList() )  ; 
+		for(Connection c: associatedConnectionsTo) {
+			connectedLyrs.add( c.getFrom() );
+		}		
+		
+		// Remove any type that are not layers
+		associatedConnectionsFrom.removeIf( node -> !( node instanceof Layer) ) ;
+		
+		
+		// Check the maximum number of layers
+		if ( (lyr instanceof ControlLayer) && connectedLyrs.size() > 1) { // S7	
+			error("Layer '"+ lyr.getName() +"' is associated with '" + connectedLyrs.size() + "' layers. A Control layer must only be associated with at most one other layer.", 
+					RoboChartPackage.Literals.NAMED_ELEMENT__NAME , CONNECTION_ASSOCIATIONS_CONTROLLAYER);
+		
+		} else if ( connectedLyrs.size() > 2 ) { // S6
+			error("Layer '"+ lyr.getName() +"' is associated with '" + connectedLyrs.size() + "' layers. A layer must only be associated with at most two other layers.", 
+					RoboChartPackage.Literals.NAMED_ELEMENT__NAME , CONNECTION_ASSOCIATIONS_LAYERS);
+		}
+		
+	}
+	
+	
+	// S8
+	@Check
+	public void connectionPlatformAssosciation(Connection con) {
+		
+		boolean nonPlatformCommunicatorAssociatedFrom = false;
+		boolean nonPlatformCommunicatorAssociatedTo = false;
+		
+		System sys = (System) con.eContainer(); 
+			
+		// Find all of the defined interface events
+		List<Event> definedInterfaceEvents = new ArrayList<Event>();
+		
+		for ( Interface i:  sys.getInterfaces() ) {
+			definedInterfaceEvents.addAll( i.getEvents() );
+		}
+		
+		
+		// Check for associations between defined interfaces 
+		nonPlatformCommunicatorAssociatedFrom = ( !(con.getFrom() instanceof RoboticPlatform) && definedInterfaceEvents.contains(con.getEfrom()) && !(con.getTo() instanceof RoboticPlatform) );  // Check from
+                                               
+		nonPlatformCommunicatorAssociatedTo = ( !(con.getTo() instanceof RoboticPlatform) && definedInterfaceEvents.contains(con.getEto()) && !(con.getFrom() instanceof RoboticPlatform) ) ; // Check to
+		
+			                         
+		if (nonPlatformCommunicatorAssociatedFrom) {
+			error("Connections must only associate Control or Generic layer events of defined interfaces with the robotic platform.", 
+					 RoboChartPackage.Literals.CONNECTION__TO, CONNECTIONS_PLATFORM_ASSOCIATION);			
+		}
+		
+		if (nonPlatformCommunicatorAssociatedTo) {
+			error("Connections must only associate Control or Generic layer events of defined interfaces with the robotic platform.", 
+					 RoboChartPackage.Literals.CONNECTION__FROM, CONNECTIONS_PLATFORM_ASSOCIATION);			
+		}
+			
+	}
+	
+	
+	
+	
+	////////////////////////////////////////////////////////////////////////////
+	
+	/* Patterns */
+	
+	
 	@Check
 	public void controlLayerPatterns(ControlLayer lyr) {
 		Pattern lyrPattern = lyr.getPattern();
@@ -168,53 +541,8 @@ public class RoboArchValidator extends AbstractRoboArchValidator {
 	}
 	
 	
-	@Check
-	public void connectionFromIsAnOutput(Connection con ) {
-		
-		
-		if ( con.getFrom() instanceof Layer ) {
-			
-			Layer lyr = (Layer)  con.getFrom(); 
-			
-			//Check for inputs that are invalid 
-			if ( Model.isEventLayerInput( lyr, con.getEfrom() ) )  {
-			
-				error("The source of a connection must be an output.", RoboChartPackage.Literals.CONNECTION__EFROM , CONNECTION_DIRECTION);
-			}
-			
 
-		}
-		
-	} 
-	
-	@Check
-	public void connectionToIsAnInput(Connection con ) {
-
-		if ( con.getTo() instanceof Layer ) {
-			
-			Layer lyr = (Layer)  con.getTo(); 
-			
-			//Check for outputs that are invalid 
-			if ( Model.isEventLayerOutput( lyr, con.getEto() ) )  {
-				
-				error("The destination of a connection must be an input.", RoboChartPackage.Literals.CONNECTION__ETO , CONNECTION_DIRECTION);
-			}
-			
-		}
-		
-	} 
-//	public static final String INVALID_NAME = "invalidName";
-//
-//	@Check
-//	public void checkGreetingStartsWithCapital(Greeting greeting) {
-//		if (!Character.isUpperCase(greeting.getName().charAt(0))) {
-//			warning("Name should start with a capital",
-//					RoboArchPackage.Literals.GREETING__NAME,
-//					INVALID_NAME);
-//		}
-//	}
-	
-	
+	////////////////////////////////////////////////////////////////////////////
 	
 	
 	/* 
