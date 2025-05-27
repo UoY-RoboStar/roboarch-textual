@@ -36,6 +36,7 @@ import circus.robocalc.roboarch.ControlLayer;
 import circus.robocalc.roboarch.ExecutiveLayer;
 import circus.robocalc.roboarch.Htn;
 import circus.robocalc.roboarch.Layer;
+import circus.robocalc.roboarch.MAPLEK;
 import circus.robocalc.roboarch.Pattern;
 import circus.robocalc.roboarch.PlannerScheduler;
 import circus.robocalc.roboarch.PlanningLayer;
@@ -438,6 +439,7 @@ public class RoboArchValidator extends AbstractRoboArchValidator {
 		
 		// Remove any type that are not layers
 		associatedConnectionsFrom.removeIf( node -> !( node instanceof Layer) ) ;
+		connectedLyrs.removeIf( node -> !( node instanceof Layer) ) ;
 		
 		
 		// Check the maximum number of layers
@@ -532,7 +534,8 @@ public class RoboArchValidator extends AbstractRoboArchValidator {
 		if (lyrPattern != null) {
 			
 			if ( !(lyrPattern instanceof  PlannerScheduler) && 
-				!(lyrPattern instanceof  Htn)  ) {
+				!(lyrPattern instanceof  Htn) &&
+				!(lyrPattern instanceof MAPLEK)) {
 					error("Pattern type cannot be used for the planning layer.",
 							RoboArchPackage.Literals.LAYER__PATTERN);
 			}
@@ -559,6 +562,25 @@ public class RoboArchValidator extends AbstractRoboArchValidator {
 			error("CSkill '" + cskl.getName() + "' has no inputs so must be declared asyc.",
 					RoboArchPackage.Literals.SKILL__ASYNC, REACTIVESKILLS_CSKILL_NOT_ASYNC);
 		}
+	}
+	
+	////////////////////////////////////////////////////////////////////////////
+		
+		
+	/* 
+	* MAPLE-K
+	*/
+	
+	// MK2
+	@Check
+	public void maplekWithLegitimateRequiresPlan(MAPLEK pattern){
+		
+			if ( pattern.getLegitimate() != null ) {
+				if ( pattern.getPlan() == null ) {
+					error("Layer '" + ((Layer) pattern.eContainer()).getName() + "' has a legitimate component but no plan component.",
+						RoboArchPackage.Literals.MAPLEK__LEGITIMATE);
+				}
+			}
 	}
 	
 }

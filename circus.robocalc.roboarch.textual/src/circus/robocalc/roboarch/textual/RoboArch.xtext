@@ -35,7 +35,7 @@ System:
 	
 Layer: 'layer' (GenericLayer |ControlLayer | ExecutiveLayer | PlanningLayer) ';' ; 
 
-Pattern:  'pattern' '=' (ReactiveSkills | Htn) ;
+Pattern:  'pattern' '=' (ReactiveSkills | Htn | MAPLEK) ;
 
 
 
@@ -82,7 +82,7 @@ PlanningLayer:
 
 @Override
 Connection returns robochart::Connection:
-    from=[robochart::ConnectionNode] 'on' efrom=[robochart::Event] 'to'  to=[robochart::ConnectionNode] 'on' eto=[robochart::Event]
+    from=[robochart::ConnectionNode] 'on' efrom=[robochart::Event] async?='to'  to=[robochart::ConnectionNode] 'on' eto=[robochart::Event]
 ;
 
 /**********************************************
@@ -98,6 +98,55 @@ Connection returns robochart::Connection:
  **********************************************/
 //TODO
 
+/**********************************************
+ *   Pattern: MAPLE-K
+ **********************************************/
+
+  MAPLEK:
+ 	{MAPLEK} 'MAPLE-K' ';'
+ 		('timeout' '=' timeout=INT ';')?
+ 		monitor=MonitorComponent
+ 		analyse=AnalyseComponent?
+ 		plan=PlanComponent?
+ 		legitimate=LegitimateComponent?
+ 		execute=ExecuteComponent;
+ 		
+ MonitorComponent:
+ 	{MonitorComponent} 'monitor' '{'(
+ 		(pattern=Pattern)? &
+ 		('inputs' '=' inputs+=[robochart::Event] (',' inputs+=[robochart::Event])* ';')* &
+ 		('processed_data_type' '=' processedDataType=Type ';') &
+ 		('recorded_data' '=' recordedData+=Variable (',' recordedData+=Variable)* ';')*
+ 	)'}'
+ ;
+ 
+ AnalyseComponent:
+ 	{AnalyseComponent} 'analyse' '{'(
+ 		(pattern=Pattern)? &
+ 		('analysis_results' '=' analysisResults+=Variable (',' analysisResults+=Variable)* ';')*
+ 	)'}'
+ ;
+ 
+ PlanComponent:
+ 	{PlanComponent} 'plan' '{'(
+ 		(pattern=Pattern)? &
+ 		('plan_data' '=' planData+=Variable (',' planData+=Variable)* ';')*
+ 	)'}'
+ ;
+ 
+ LegitimateComponent:
+ 	{LegitimateComponent} 'legitimate' '{'(
+ 		(pattern=Pattern)? &
+ 		('verification_info' '=' verificationInfo+=Variable (',' verificationInfo+=Variable)* ';')*
+ 	)'}'
+ ;
+ 
+ ExecuteComponent:
+ 	{ExecuteComponent} 'execute' '{'(
+ 		(pattern=Pattern)? &
+ 		('outputs' '=' outputs+=[robochart::Event] (',' outputs+=[robochart::Event])* ';')*
+ 	)'}'
+ ;
 
 /**********************************************
  *   Pattern: REACTIVE SKILLS
